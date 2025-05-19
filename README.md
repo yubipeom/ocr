@@ -6,6 +6,8 @@
 2. 在网页上可以按下鼠标，移动，再松开
 3. 系统会识别出鼠标选中的文字，可以复制这组文字
 
+<video src="https://github.com/thyecust/ocr_demo/raw/refs/heads/main/static/example.mp4" controls preload></video>
+
 环境配置
 
 1. 安装pytesseract，确保可以解析中文图片：`print(pytesseract.image_to_string(Image.open('test.png'), lang='chi_sim'))`
@@ -13,8 +15,6 @@
 3. 启动应用：`python3 app.py`
 
 你的任务是补充`app.py`中的`upload_image`和`uploaded_file`两个函数，使系统能正常运行。
-
-加分项：现在`main.js`中的`drawHighlights`是不可用的，你能把它修好吗？
 
 提交方式：
 1. 不要直接fork这个仓库，请clone这个仓库，然后完成任务
