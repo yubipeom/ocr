@@ -6,7 +6,7 @@
 2. 在网页上可以按下鼠标，移动，再松开
 3. 系统会识别出鼠标选中的文字，可以复制这组文字
 
-<video src="https://github.com/thyecust/ocr_demo/raw/refs/heads/main/static/example.mp4" controls preload></video>
+https://github.com/user-attachments/assets/20f63a73-999c-46f2-8e62-2a060efdd480
 
 环境配置
 
