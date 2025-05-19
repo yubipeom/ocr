@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let originalImageHeight = 0;
 
     copySelectedTextButton.disabled = true;
-    console.log("OCR Word Selector script loaded."); // Log script load
+    console.log("OCR Word Selector script loaded. Canvas context:", ctx); 
 
     imageUpload.addEventListener('change', async (event) => {
         const file = event.target.files[0];
@@ -57,25 +57,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result.success) {
                 ocrImage.onload = () => {
-                    console.log("ocrImage loaded successfully. Displayed width:", ocrImage.clientWidth, "height:", ocrImage.clientHeight);
-                    selectionCanvas.width = ocrImage.clientWidth;
-                    selectionCanvas.height = ocrImage.clientHeight;
-                    ocrImage.style.display = 'block';
-                    selectionCanvas.style.display = 'block';
+                    // First, make the image visible in the layout
+                    ocrImage.style.display = 'block'; 
+                    selectionCanvas.style.display = 'block'; 
 
-                    originalImageWidth = result.imageWidth;
-                    originalImageHeight = result.imageHeight;
-                    imageScaleX = ocrImage.clientWidth / originalImageWidth;
-                    imageScaleY = ocrImage.clientHeight / originalImageHeight;
-                    console.log("Image scale factors:", imageScaleX, imageScaleY);
-                    
-                    statusMessages.textContent = `图像加载成功。识别到 ${result.ocrData.length} 个词语。`;
-                    statusMessages.className = 'success';
+                    // Use requestAnimationFrame to ensure dimensions are read after browser layout
+                    requestAnimationFrame(() => {
+                        console.log("[ocrImage.onload > rAF] Image displayed. ClientW:", ocrImage.clientWidth, "ClientH:", ocrImage.clientHeight);
+                        if (ocrImage.clientWidth === 0 || ocrImage.clientHeight === 0) {
+                            console.warn("[ocrImage.onload > rAF] Image dimensions are zero. Canvas will also be zero!");
+                        }
+                        selectionCanvas.width = ocrImage.clientWidth;
+                        selectionCanvas.height = ocrImage.clientHeight;
+                        console.log("[ocrImage.onload > rAF] Canvas dimensions SET to: W=", selectionCanvas.width, "H=", selectionCanvas.height);
+
+                        originalImageWidth = result.imageWidth;
+                        originalImageHeight = result.imageHeight;
+                        imageScaleX = ocrImage.clientWidth > 0 ? ocrImage.clientWidth / originalImageWidth : 1; 
+                        imageScaleY = ocrImage.clientHeight > 0 ? ocrImage.clientHeight / originalImageHeight : 1; 
+                        console.log("[ocrImage.onload > rAF] Image scale factors: X=", imageScaleX, "Y=", imageScaleY);
+                        
+                        statusMessages.textContent = `图像加载成功。识别到 ${result.ocrData.length} 个词语。`;
+                        statusMessages.className = 'success';
+                    });
                 };
                 ocrImage.onerror = () => {
                      console.error("Error loading processed image into <img> tag.");
                      statusMessages.textContent = '无法加载处理后的图像。';
                      statusMessages.className = 'error';
+                     ocrImage.style.display = 'block'; 
                 }
                 ocrImage.src = result.imageUrl; 
                 ocrDataGlobal = result.ocrData; 
@@ -99,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
             x: evt.clientX - rect.left,
             y: evt.clientY - rect.top
         };
-        // console.log("Mouse position on canvas:", pos); // Can be too verbose
         return pos;
     }
     
@@ -108,14 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
                           rect1.x > rect2.x + rect2.width ||
                           rect1.y + rect1.height < rect2.y ||
                           rect1.y > rect2.y + rect2.height);
-        // if (overlap) console.log("Rects overlap:", rect1, rect2); // Can be verbose
         return overlap;
     }
 
     selectionCanvas.addEventListener('mousedown', (event) => {
         if (!ocrDataGlobal.length) return; 
         selectionStartPoint = getMousePos(selectionCanvas, event);
-        console.log("Mousedown at:", selectionStartPoint);
+        console.log("[Mousedown] Start point:", selectionStartPoint, "Canvas W/H:", selectionCanvas.width, selectionCanvas.height);
         currentSelectionRect = null; 
         selectedWordIndices = []; 
         clearCanvas(); 
@@ -124,8 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     selectionCanvas.addEventListener('mousemove', (event) => {
         if (!selectionStartPoint || !ocrDataGlobal.length) return;
-        
-        // Added event.preventDefault() here for touchpad compatibility
         event.preventDefault(); 
 
         const currentMousePos = getMousePos(selectionCanvas, event);
@@ -134,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const width = Math.abs(selectionStartPoint.x - currentMousePos.x);
         const height = Math.abs(selectionStartPoint.y - currentMousePos.y);
         currentSelectionRect = { x, y, width, height };
-        // console.log("Mousemove, currentSelectionRect:", currentSelectionRect); // Can be too verbose
 
         selectedWordIndices = [];
         ocrDataGlobal.forEach(wordInfo => { 
@@ -149,43 +154,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        if (selectedWordIndices.length > 0) {
-            // console.log("Words selected during mousemove:", selectedWordIndices.length);
-        }
         selectedWordIndices.sort((a, b) => a - b); 
         drawHighlights(); 
     });
 
     selectionCanvas.addEventListener('mouseup', (event) => {
         if (!selectionStartPoint) return;
-        console.log("Mouseup event. Final selected word indices:", selectedWordIndices);
+        console.log("[Mouseup] Final selected word indices:", selectedWordIndices.length > 0 ? selectedWordIndices : "None");
         selectionStartPoint = null; 
         updateSelectedTextPreviewAndButton(); 
     });
     
     selectionCanvas.addEventListener('mouseleave', (event) => {
         if (selectionStartPoint) { 
-            console.log("Mouseleave event during selection. Final selected word indices:", selectedWordIndices);
+            console.log("[Mouseleave during drag] Finalizing selection. Selected words:", selectedWordIndices.length > 0 ? selectedWordIndices : "None");
             selectionStartPoint = null;
             updateSelectedTextPreviewAndButton();
         }
     });
 
     function clearCanvas() {
-        console.log("Clearing canvas.");
         ctx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
     }
 
     function drawHighlights() {
         clearCanvas(); 
         if (!selectedWordIndices.length) {
-            // console.log("drawHighlights called, but no words selected.");
             return; 
         }
-        console.log("drawHighlights called. Selected words count:", selectedWordIndices.length);
+        console.log("[DrawHighlights] START. Canvas W/H:", selectionCanvas.width, selectionCanvas.height, "Selected words count:", selectedWordIndices.length);
+        if (selectionCanvas.width === 0 || selectionCanvas.height === 0) {
+            console.error("[DrawHighlights] Canvas has zero width or height. Cannot draw.");
+            return;
+        }
 
-        const selectionColor = "rgba(215, 0, 68, 0.95)"; 
+        //const selectionColor = "red"; // DEBUG: Using a very obvious color
+        const selectionColor = "rgba(0, 120, 215, 0.3)"; // Original color
         ctx.fillStyle = selectionColor;
+        console.log("[DrawHighlights] Fill style set to:", ctx.fillStyle, "Global Alpha:", ctx.globalAlpha);
+
 
         const lineGroups = {}; 
         selectedWordIndices.forEach(globalIndex => {
@@ -197,8 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 lineGroups[wordInfo.line_index].push(wordInfo);
             }
         });
-        console.log("Line groups for highlighting:", lineGroups);
 
+        let drawnRectCount = 0;
         for (const lineIdx in lineGroups) {
             const wordsInLine = lineGroups[lineIdx];
             if (!wordsInLine.length) continue;
@@ -216,13 +223,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 minY = Math.min(minY, scaledBoxY);                 
                 maxY = Math.max(maxY, scaledBoxY + scaledBoxHeight); 
             });
-            if (minX !== Infinity) { 
-                 console.log(`Drawing highlight for line ${lineIdx}:`, {minX, minY, width: maxX - minX, height: maxY - minY});
-                 ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+            
+            const rectX = minX;
+            const rectY = minY;
+            const rectWidth = maxX - minX;
+            const rectHeight = maxY - minY;
+
+            if (rectWidth > 0 && rectHeight > 0) { 
+                 console.log(`[DrawHighlights] Drawing highlight for line ${lineIdx}: X=${rectX}, Y=${rectY}, W=${rectWidth}, H=${rectHeight}`);
+                 ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+                 drawnRectCount++;
             } else {
-                 console.log(`Skipping highlight for line ${lineIdx} due to invalid coordinates.`);
+                 console.warn(`[DrawHighlights] Skipping highlight for line ${lineIdx} due to zero or negative width/height: W=${rectWidth}, H=${rectHeight}`);
             }
         }
+        console.log("[DrawHighlights] END. Drawn rects:", drawnRectCount);
     }
     
     function updateSelectedTextPreviewAndButton() {
