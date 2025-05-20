@@ -10,8 +10,8 @@ https://github.com/user-attachments/assets/20f63a73-999c-46f2-8e62-2a060efdd480
 
 环境配置
 
-1. 安装pytesseract，确保可以解析中文图片：`print(pytesseract.image_to_string(Image.open('test.png'), lang='chi_sim'))`
-2. 安装app.py中的依赖：`pip install pytesseract flask bs4`
+1. 安装app.py中的依赖：`pip install pytesseract flask bs4`
+2. 安装tesseract，确保可以解析中文图片：`print(pytesseract.image_to_string(Image.open('test.png'), lang='chi_sim'))`
 3. 启动应用：`python3 app.py`
 
 你的任务是补充`app.py`中的`upload_image`和`uploaded_file`两个函数，使系统能正常运行。
