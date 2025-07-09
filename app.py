@@ -1,8 +1,10 @@
 import os
 import pytesseract
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from bs4 import BeautifulSoup
 import re
+from PIL import Image
+import uuid
 
 OCR_LANGUAGES = 'chi_sim'
 UPLOAD_FOLDER = 'uploads'
@@ -71,13 +73,62 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    """TODO"""
-    pass
+    """处理图片上传和OCR识别"""
+    try:
+        # 检查是否有文件上传
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': '没有选择文件'}), 400
+        
+        file = request.files['file']
+        
+        # 检查文件名是否为空
+        if file.filename == '':
+            return jsonify({'success': False, 'error': '没有选择文件'}), 400
+        
+        # 检查文件格式
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': '不支持的文件格式'}), 400
+        
+        # 生成唯一文件名
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        # 确保上传目录存在
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        
+        # 保存文件
+        file.save(file_path)
+        
+        # 使用PIL打开图片
+        pil_image = Image.open(file_path)
+        
+        # 获取图片尺寸
+        image_width, image_height = pil_image.size
+        
+        # 执行OCR识别
+        ocr_data = perform_ocr_web(pil_image)
+        
+        # 返回结果
+        return jsonify({
+            'success': True,
+            'imageUrl': f'/uploads/{unique_filename}',
+            'imageWidth': image_width,
+            'imageHeight': image_height,
+            'ocrData': ocr_data
+        })
+        
+    except Exception as e:
+        print(f"Upload error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    """TODO"""
-    pass
+    """提供上传文件的访问"""
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except FileNotFoundError:
+        return jsonify({'error': '文件不存在'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
