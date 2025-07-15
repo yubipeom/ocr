@@ -6,7 +6,7 @@ import re
 from PIL import Image
 import uuid
 
-OCR_LANGUAGES = 'chi_sim'
+OCR_LANGUAGES = 'chi_sim'#test
 UPLOAD_FOLDER = 'uploads'
 STATIC_FOLDER = 'static'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff'}
